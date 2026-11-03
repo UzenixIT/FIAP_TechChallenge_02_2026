@@ -7,6 +7,7 @@ cd /d "%~dp0"
 :: por isso os dois ambientes podem funcionar ao mesmo tempo.
 set "API_URL=http://localhost:8000"
 set "JUPYTER_URL=http://localhost:8888"
+set "APP_URL=http://localhost:8501"
 set "K8S_URL=http://localhost:8010"
 
 goto MENU
@@ -51,7 +52,7 @@ if "!DOCKER_INSTALADO!"=="0" (
 echo.
 echo ------------------------------------------------------------
 echo  PROJETO
-echo   [1] Iniciar projeto (API + Jupyter)
+echo   [1] Iniciar projeto (API + Jupyter + Interface)
 echo   [2] Encerrar projeto
 echo   [3] Verificar status
 echo   [4] Executar testes automatizados
@@ -108,7 +109,7 @@ echo [2/3] Construindo e iniciando os containers...
 echo       (a primeira execucao pode levar alguns minutos)
 echo.
 
-docker compose up -d --build
+docker compose up -d --build --force-recreate
 
 if errorlevel 1 (
     echo.
@@ -117,7 +118,7 @@ if errorlevel 1 (
     echo ============================================================
     echo.
     echo Verifique as mensagens acima.
-    echo Se a porta 8000 ou 8888 estiver ocupada por outro programa,
+    echo Se a porta 8000, 8888 ou 8501 estiver ocupada por outro programa,
     echo encerre-o e tente novamente.
     echo.
     pause
@@ -147,6 +148,8 @@ echo Abrindo o navegador...
 start "" "%API_URL%/docs"
 timeout /t 1 /nobreak >nul
 start "" "%JUPYTER_URL%"
+timeout /t 1 /nobreak >nul
+start "" "%APP_URL%"
 
 echo.
 echo ============================================================
@@ -155,6 +158,7 @@ echo ============================================================
 echo.
 echo API (Swagger):  %API_URL%/docs
 echo Jupyter:        %JUPYTER_URL%
+echo Interface:      %APP_URL%
 echo.
 echo Execute os notebooks na ordem: 01 - 02 - 03 - 04
 echo.
@@ -321,6 +325,16 @@ call :EXIGIR_KUBERNETES
 if errorlevel 1 goto MENU
 
 call :CRIAR_ENV
+
+echo [0/5] Verificando o Metrics Server - necessario para o HPA...
+kubectl get deployment metrics-server -n kube-system >nul 2>&1
+if errorlevel 1 (
+    echo Metrics Server nao encontrado. Instalando...
+    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+)
+kubectl patch deployment metrics-server -n kube-system --patch-file k8s/metrics-server-patch.yaml >nul 2>&1
+echo Metrics Server pronto.
+echo.
 
 echo [1/5] Construindo a imagem fiap-fase2-api:latest...
 echo.

@@ -1,36 +1,32 @@
+# As tres servicos usam a MESMA imagem (fiap-fase2-api:latest),
+# que tambem e usada pelo Kubernetes. Assim nunca ha versoes diferentes.
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
-
+    image: fiap-fase2-api:latest
     container_name: fiap_fase2_api
-
     command: >
       python -m uvicorn api.main:app
       --host 0.0.0.0
       --port 8000
       --reload
-
     ports:
       - "8000:8000"
-
     volumes:
       - .:/app
-
     env_file:
       - .env
-
     networks:
       - fiap_network
 
   jupyter:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
+    image: fiap-fase2-api:latest
+    pull_policy: never
+    depends_on:
+      - api
     container_name: fiap_fase2_jupyter
-
     command: >
       jupyter notebook
       --ip=0.0.0.0
@@ -38,16 +34,31 @@ services:
       --no-browser
       --allow-root
       --ServerApp.token=''
-
     ports:
       - "8888:8888"
-
     volumes:
       - .:/app
-
     env_file:
       - .env
+    networks:
+      - fiap_network
 
+  app:
+    image: fiap-fase2-api:latest
+    pull_policy: never
+    depends_on:
+      - api
+    container_name: fiap_fase2_app
+    command: >
+      streamlit run app.py
+      --server.port=8501
+      --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
     networks:
       - fiap_network
 
