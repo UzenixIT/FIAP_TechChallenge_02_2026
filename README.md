@@ -3,7 +3,7 @@
 **Projeto 1 — Otimização de Modelos de Diagnóstico Oncológico via Algoritmos Genéticos e IA Generativa (LLMs)**
 
 > **Integrantes (Grupo 40):** Felipe Antonio Ayancan Hernandez & Fernando Ponz Vargas
-> **Vídeo de demonstração:** [Inserir link do YouTube/Vimeo]
+> **Vídeo de demonstração:** https://youtu.be/cKLYbdGxhsQ
 > **Documentação de arquitetura e evidências K8s:** [`docs/arquitetura.md`](docs/arquitetura.md)
 > **Relatório formal de entrega:** [`Relatorio_Entrega_Fase2.docx`](Relatorio_Entrega_Fase2.docx)
 
@@ -242,6 +242,7 @@ docker compose up -d --build
 | ----------------- | -------------------------- |
 | API (Swagger)     | http://localhost:8000/docs |
 | Jupyter           | http://localhost:8888      |
+| Interface clínica | http://localhost:8501      |
 | API no Kubernetes | http://localhost:8010/docs |
 
 Execute os notebooks na ordem `01 → 02 → 03 → 04`.
@@ -297,10 +298,24 @@ No Swagger, `/predict` e `/interpret` já trazem um paciente de exemplo.
 
 ## ☸️ Kubernetes e escalabilidade automática
 
+**Pré-requisito:** ativar o Kubernetes no Docker Desktop (Settings → Kubernetes → Enable).
+
+**Opção rápida (Windows):** `projeto.bat` → opção **[5]**. Ela instala o Metrics Server (se necessário), constrói a imagem, cria o Secret a partir do `.env` e aplica os manifestos. A opção **[6]** executa o teste de carga.
+
+**Opção manual:**
+
 ```bash
+# 1. Metrics Server (somente na primeira vez)
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl patch deployment metrics-server -n kube-system --patch-file k8s/metrics-server-patch.yaml
+
+# 2. Imagem, Secret e manifestos
 docker build -t fiap-fase2-api:latest .
 kubectl create secret generic fiap-fase2-secrets --from-env-file=.env
 kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml -f k8s/hpa.yaml
+
+# 3. Teste de carga
+python scripts/load_test.py http://localhost:8010
 ```
 
 - **HPA:** 1 a 5 réplicas, meta de 60% de CPU (sobre `requests` de 100m).
